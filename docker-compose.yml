@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  pipeline:
+    build: .
+    environment:
+      - INPUT_DIR=/data/input
+      - OUTPUT_DIR=/data/output
+      - GOOGLE_APPLICATION_CREDENTIALS=/secrets/service-account.json
+    volumes:
+      - ./data:/data
+      - ./service-account.json:/secrets/service-account.json:ro

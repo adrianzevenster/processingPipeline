@@ -1,0 +1,9 @@
+setup.cfg
+setup.py
+src/pdf_image_processor.egg-info/PKG-INFO
+src/pdf_image_processor.egg-info/SOURCES.txt
+src/pdf_image_processor.egg-info/dependency_links.txt
+src/pdf_image_processor.egg-info/entry_points.txt
+src/pdf_image_processor.egg-info/requires.txt
+src/pdf_image_processor.egg-info/top_level.txt
+tests/test_cli.py

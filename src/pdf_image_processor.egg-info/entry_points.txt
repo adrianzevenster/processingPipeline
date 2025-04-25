@@ -1,0 +1,2 @@
+[console_scripts]
+docauth = src.cli:cli

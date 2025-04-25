@@ -1,0 +1,13 @@
+Metadata-Version: 2.1
+Name: pdf-image-processor
+Version: 0.1.0
+Summary: Document Authentication Pipeline
+Requires-Dist: google-cloud-documentai>=2.10.0
+Requires-Dist: google-cloud-storage>=2.0.0
+Requires-Dist: click>=8.0.0
+Requires-Dist: PyPDF2>=3.0.0
+Requires-Dist: Pillow>=9.0.0
+Requires-Dist: pytesseract>=0.3.10
+Requires-Dist: python-dotenv>=0.21.0
+Requires-Dist: requests>=2.28.0
+Requires-Dist: pytest>=7.0.0
