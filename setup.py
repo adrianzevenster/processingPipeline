@@ -19,7 +19,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "docauth=src.cli:cli",
+            "docauth=cli:cli",
         ],
     },
 )

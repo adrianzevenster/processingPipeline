@@ -2,7 +2,7 @@
 Validates entities from API against custom extractions.
 """
 from typing import List, Dict, Tuple
-from src.utils.ocr_helpers import extract_custom_entities
+from utils.ocr_helpers import extract_custom_entities
 
 
 def validate_entities(api_entities: List[Dict], text: str) -> List[Dict]:

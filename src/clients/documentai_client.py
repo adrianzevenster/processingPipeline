@@ -14,13 +14,16 @@ from utils.config import (
 
 class DocumentAIClient:
     def __init__(self):
-        # Use Application Default Credentials or service account file
-        if GOOGLE_APPLICATION_CREDENTIALS and os.path.exists(GOOGLE_APPLICATION_CREDENTIALS):
-            creds = service_account.Credentials.from_service_account_file(
-                GOOGLE_APPLICATION_CREDENTIALS
-            )
+        # Try service account JSON if the path exists
+        sa_path = GOOGLE_APPLICATION_CREDENTIALS
+        if sa_path and os.path.exists(sa_path):
+            creds = service_account.Credentials.from_service_account_file(sa_path)
         else:
+            # Remove any bad env var so google.auth.default() won't try it
+            os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
             creds, proj = google.auth.default()
+
+
         # Initialize the Document AI client with credentials
         self.client = documentai.DocumentProcessorServiceClient(credentials=creds)
         project = GCP_PROJECT_ID or proj
@@ -29,10 +32,15 @@ class DocumentAIClient:
             f"/processors/{GCP_PROCESSOR_ID}"
         )
         # Validate access by retrieving the processor metadata
+        from google.api_core.exceptions import PermissionDenied
         try:
             _ = self.client.get_processor(request={"name": self.name})
+        except PermissionDenied:
+            # Insufficient permissions to call get_processor; skip validation
+            print(f"Warning: permission denied for processor {self.name}, skipping validation.")
         except Exception as e:
             raise RuntimeError(f"Failed to validate Document AI processor access: {e}")
+
 
     def process(self, content: bytes, mime_type: str):
         """Sends content to Document AI and returns the resulting document object."""
