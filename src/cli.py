@@ -36,6 +36,15 @@ def run(input_dir, output_dir):
     dst = Path(output_dir)
     ensure_dir(dst)
 
+    # If GOOGLE_APPLICATION_CREDENTIALS contains raw JSON (as in GitHub Actions secret), write it to a file
+    cred_env = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', '')
+    if cred_env.strip().startswith('{'):
+        sa_path = Path(os.getenv('RUNNER_TEMP', dst.parent)) / 'service-account.json'
+        sa_path.write_text(cred_env)
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = str(sa_path)
+
+    # Ingest
+
     # Ingest
     pdf_texts = ingest_pdfs(src)
     img_texts = ingest_images(src)
