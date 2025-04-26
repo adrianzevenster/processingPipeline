@@ -1,21 +1,22 @@
+import pytest
 from pathlib import Path
-from ingest.ingest_pdf import load_pdf, ingest_pdfs
-from PyPDF2 import PdfWriter
+from ingest.ingest_image import load_image, ingest_images
+from PIL import Image
 
-def create_pdf(path: Path):
-    w = PdfWriter()
-    w.add_blank_page(72,72)
-    with open(path, 'wb') as f:
-        w.write(f)
+@pytest.fixture
+def sample_image(tmp_path):
+    path = tmp_path / "sample.png"
+    img = Image.new("RGB", (10, 10), color="white")
+    img.save(path)
+    return path
 
+def test_load_image_returns_text(sample_image, monkeypatch):
+    monkeypatch.setattr("pytesseract.image_to_string", lambda img: "hello")
+    text = load_image(sample_image)
+    assert text == "hello"
 
-def test_load_pdf(tmp_path):
-    p = tmp_path / 'a.pdf'
-    create_pdf(p)
-    assert isinstance(load_pdf(p), str)
-
-
-def test_ingest_pdf(tmp_path):
-    p = tmp_path / 'a.pdf'; create_pdf(p)
-    res = ingest_pdfs(tmp_path)
-    assert 'a.pdf' in res
+def test_ingest_images(sample_image, monkeypatch):
+    monkeypatch.setattr("pytesseract.image_to_string", lambda img: "world")
+    result = ingest_images(sample_image.parent)
+    assert sample_image.name in result
+    assert result[sample_image.name] == "world"
