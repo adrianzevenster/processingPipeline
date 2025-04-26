@@ -1,16 +1,18 @@
-"""
-pytest configuration: add project root to PYTHONPATH so tests can import modules under src/ directory.
-"""
+# tests/conftest.py
+
 import sys
 from pathlib import Path
-# Insert project root (parent directory of this tests folder) into sys.path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Stub out DocumentAIClient initialization to prevent credential errors during tests
+# 1) Make the project root and src/ importable
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+sys.path.insert(1, str(project_root / "src"))
+
 import pytest
-from src.clients.documentai_client import DocumentAIClient
+from clients.documentai_client import DocumentAIClient
 
+# 2) Stub out the DocumentAIClient __init__ so it doesn’t require real credentials
 @pytest.fixture(autouse=True)
 def dummy_client_init(monkeypatch):
-    """Replace DocumentAIClient.__init__ so no real GCP credential checks occur."""
-    monkeypatch.setattr(DocumentAIClient, '__init__', lambda self: None)
+    """Prevent DocumentAIClient from validating/accessing real GCP during tests."""
+    monkeypatch.setattr(DocumentAIClient, "__init__", lambda self: None)

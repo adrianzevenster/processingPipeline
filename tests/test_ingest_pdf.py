@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from src.ingest.ingest_pdf import load_pdf, ingest_pdfs
+from ingest.ingest_pdf import load_pdf, ingest_pdfs
 from PyPDF2 import PdfWriter
 
 @pytest.fixture
@@ -12,11 +12,9 @@ def sample_pdf(tmp_path):
         writer.write(f)
     return path
 
-
 def test_load_pdf_returns_string(sample_pdf):
     text = load_pdf(sample_pdf)
     assert isinstance(text, str)
-
 
 def test_ingest_pdfs(sample_pdf):
     dir = sample_pdf.parent
