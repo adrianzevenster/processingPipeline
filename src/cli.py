@@ -85,5 +85,32 @@ def run(input_dir, output_dir):
 
     click.echo(f"Processed {len(all_docs)} documents.")
 
+    import json
+    # Interpret and summarize results
+    try:
+        # Document AI metrics: entity confidences
+        confs = [e.confidence for e in doc.entities]
+        avg_conf = sum(confs) / len(confs) if confs else None
+    except Exception:
+        avg_conf = None
+    # Gemini metrics
+    try:
+        gem_resp = gem.analyze(cleaned)
+        gem_conf = gem_resp.get('confidence')
+        gem_output = gem_resp.get('output', gem_resp)
+    except Exception:
+        gem_conf = None
+        gem_output = None
+    summary = {
+        'document': name,
+        'num_api_entities': len(api_entities),
+        'avg_entity_confidence': avg_conf,
+        'gemini_output': gem_output,
+        'gemini_confidence': gem_conf,
+    }
+    (dst / f"{name}_summary.json").write_text(json.dumps(summary, indent=2))
+
+    click.echo(f"Processed {len(all_docs)} documents.")
+
 if __name__ == '__main__':
     cli()
