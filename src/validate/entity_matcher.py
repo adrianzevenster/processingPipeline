@@ -6,8 +6,8 @@ from utils.ocr_helpers import extract_custom_entities
 
 
 def match_entities(
-    text: str,
-    api_entities: List[Dict[str, str]]
+        text: str,
+        api_entities: List[Dict[str, str]]
 ) -> Dict[str, List[Dict[str, object]]]:
     """
     Compares custom-extracted entities to API entities, highlighting matches and misses.
@@ -18,7 +18,7 @@ def match_entities(
     Returns:
         Dict with keys 'custom', 'matches', and 'missing'.
     """
-    # 1) extract your own entities
+    # Extract custom entities
     custom: List[Tuple[str, str]] = extract_custom_entities(text)
     custom_dicts = [{'type': t, 'value': v} for t, v in custom]
 
@@ -26,8 +26,8 @@ def match_entities(
     missing = []
     for entity in custom_dicts:
         found = any(
-            e['type_'] == entity['type'] and
-            e['mention_text'] == entity['value']
+            e.get('type_') == entity['type'] and
+            e.get('mention_text') == entity['value']
             for e in api_entities
         )
         if found:
