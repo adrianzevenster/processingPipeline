@@ -38,21 +38,18 @@ class DocumentAIClient:
         )
 
         # Validate access by retrieving the processor metadata
-        from google.api_core.exceptions import PermissionDenied
+        from google.api_core.exceptions import PermissionDenied, InvalidArgument
         try:
             _ = self.client.get_processor(request={"name": self.name})
         except PermissionDenied:
-            click.echo(f"Warning: permission denied for processor {self.name}, skipping validation.")
+            click.echo(
+                f"Warning: permission denied for processor {self.name}, skipping validation."
+            )
+        except InvalidArgument:
+            click.echo(
+                f"Warning: invalid processor resource '{self.name}', skipping validation."
+            )
         except Exception as e:
-            raise RuntimeError(f"Failed to validate Document AI processor access: {e}")
-
-    def process(self, content: bytes, mime_type: str):
-        """Sends content to Document AI and returns the resulting document object."""
-        request = documentai.types.ProcessRequest(
-            name=self.name,
-            raw_document=documentai.types.RawDocument(
-                content=content,
-                mime_type=mime_type,
-            ),
-        )
-        return self.client.process_document(request=request).document
+            raise RuntimeError(
+                f"Failed to validate Document AI processor access: {e}"
+            )

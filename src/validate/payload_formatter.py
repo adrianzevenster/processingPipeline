@@ -12,12 +12,9 @@ def build_validation_payload(text: str) -> Dict[str, List[Dict[str, str]]]:
     Args:
         text: Raw document text.
     Returns:
-        A dict with key 'entities', list of dicts with 'type' and 'value'.
+        A dict with key 'entities', each a dict of 'type' and 'value'.
     """
     custom: List[Tuple[str, str]] = extract_custom_entities(text)
     return {
-        'entities': [
-            {'type': label, 'value': value}
-            for label, value in custom
-        ]
+        'entities': [{ 'type': label, 'value': value } for label, value in custom]
     }
