@@ -3,18 +3,22 @@ Command-line interface to run the document authentication pipeline.
 """
 import os
 import sys
+import json
+import click
 from pathlib import Path
 
 # Ensure project's src folder is in sys.path when invoked via console script
 project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root / 'src'))
+sys.path.insert(0, str(project_root))
+sys.path.insert(1, str(project_root / 'src'))
 
-import click
 from ingest.ingest_pdf import ingest_pdfs
 from ingest.ingest_image import ingest_images
 from transform.cleaner import clean_text
 from clients.documentai_client import DocumentAIClient
 from clients.gemini_client import GeminiClient
+from validate.payload_formatter import build_validation_payload
+from validate.entity_matcher import match_entities
 from validate.entity_validator import validate_entities
 from utils.config import INPUT_DIR, OUTPUT_DIR
 
@@ -36,79 +40,85 @@ def run(input_dir, output_dir):
     dst = Path(output_dir)
     ensure_dir(dst)
 
-    # If GOOGLE_APPLICATION_CREDENTIALS contains raw JSON (as in GitHub Actions secret), write it to a file
+    # Handle raw JSON creds in CI
     cred_env = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', '')
     if cred_env.strip().startswith('{'):
-        sa_path = Path(os.getenv('RUNNER_TEMP', dst.parent)) / 'service-account.json'
-        sa_path.write_text(cred_env)
-        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = str(sa_path)
-
-    # Ingest
+        temp_dir = Path(os.getenv('RUNNER_TEMP', dst.parent))
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        sa_file = temp_dir / 'service-account.json'
+        sa_file.write_text(cred_env)
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = str(sa_file)
 
     # Ingest
     pdf_texts = ingest_pdfs(src)
     img_texts = ingest_images(src)
 
-    # Initialize clients (requires GCP credentials)
+    # Initialize clients
     try:
         dai = DocumentAIClient()
         gem = GeminiClient()
     except Exception as e:
-        import sys
         from google.auth.exceptions import DefaultCredentialsError
         if isinstance(e, DefaultCredentialsError):
-            click.echo("Error: GCP credentials not found. Please set the GOOGLE_APPLICATION_CREDENTIALS environment variable to your service account JSON, or run 'gcloud auth application-default login'.")
+            click.echo(
+                "Error: GCP credentials not found. "
+                "Set GOOGLE_APPLICATION_CREDENTIALS or run gcloud auth application-default login."
+            )
             sys.exit(1)
-        else:
-            raise
+        raise
 
-
-    # Process each document
     all_docs = {**pdf_texts, **img_texts}
     for name, text in all_docs.items():
         cleaned = clean_text(text)
-        # Document AI processing with fallback on PermissionDenied
+
+        # Build custom payload for validation
+        payload = build_validation_payload(cleaned)
+
+        # Document AI with fallback
         from google.api_core.exceptions import PermissionDenied
         try:
             doc = dai.process(cleaned.encode('utf-8'), 'text/plain')
         except PermissionDenied:
-            click.echo(f"Warning: permission denied processing document '{name}', skipping Document AI extraction.")
-            # Fallback to dummy doc with no entities
-            class _DummyDoc:
-                entities = []
+            click.echo(f"Warning: permission denied for '{name}', skipping Document AI.")
+            class _DummyDoc: entities = []
             doc = _DummyDoc()
-        api_entities = [{'type_': e.type_, 'mention_text': e.mention_text} for e in doc.entities]
-        # Validate entities
+
+        # Extract API entities
+        api_entities = [
+            {'type_': e.type_, 'mention_text': e.mention_text}
+            for e in doc.entities
+        ]
+
+        # Local validation
         results = validate_entities(api_entities, cleaned)
-        # Write results
-        (dst / f"{name}_results.json").write_text(str(results))
+        (dst / f"{name}_results.json").write_text(json.dumps(results, indent=2))
 
-    click.echo(f"Processed {len(all_docs)} documents.")
+        # Match entities
+        matches = match_entities(cleaned, api_entities)
+        (dst / f"{name}_matches.json").write_text(json.dumps(matches, indent=2))
 
-    import json
-    # Interpret and summarize results
-    try:
-        # Document AI metrics: entity confidences
-        confs = [e.confidence for e in doc.entities]
-        avg_conf = sum(confs) / len(confs) if confs else None
-    except Exception:
-        avg_conf = None
-    # Gemini metrics
-    try:
-        gem_resp = gem.analyze(cleaned)
-        gem_conf = gem_resp.get('confidence')
-        gem_output = gem_resp.get('output', gem_resp)
-    except Exception:
-        gem_conf = None
-        gem_output = None
-    summary = {
-        'document': name,
-        'num_api_entities': len(api_entities),
-        'avg_entity_confidence': avg_conf,
-        'gemini_output': gem_output,
-        'gemini_confidence': gem_conf,
-    }
-    (dst / f"{name}_summary.json").write_text(json.dumps(summary, indent=2))
+        # Summarize metrics
+        try:
+            confidences = [e.confidence for e in doc.entities]
+            avg_conf = sum(confidences) / len(confidences) if confidences else None
+        except AttributeError:
+            avg_conf = None
+        try:
+            gem_resp = gem.analyze(cleaned)
+            gem_conf = gem_resp.get('confidence')
+            gem_out = gem_resp.get('output', gem_resp)
+        except Exception:
+            gem_conf = None
+            gem_out = None
+
+        summary = {
+            'document': name,
+            'num_api_entities': len(api_entities),
+            'avg_entity_confidence': avg_conf,
+            'gemini_output': gem_out,
+            'gemini_confidence': gem_conf,
+        }
+        (dst / f"{name}_summary.json").write_text(json.dumps(summary, indent=2))
 
     click.echo(f"Processed {len(all_docs)} documents.")
 
