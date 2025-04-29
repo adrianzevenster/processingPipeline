@@ -27,13 +27,25 @@ jobs:
         run: |
           mkdir -p data/input data/output
 
+      - name: Write GCP service-account JSON
+        # GCP_SA_KEY is your JSON key stored as a multiline secret
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: |
+          echo "$GCP_SA_KEY" > "${{ runner.temp }}/gcp-key.json"
+          echo "Wrote GCP key to ${{ runner.temp }}/gcp-key.json"
+
+      - name: Export GOOGLE_APPLICATION_CREDENTIALS
+        run: |
+          echo "GOOGLE_APPLICATION_CREDENTIALS=${{ runner.temp }}/gcp-key.json" >> $GITHUB_ENV
+
       - name: Run pipeline
         run: |
           docauth run --input-dir data/input --output-dir data/output
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GCP_SA_KEY }}
-          GCP_PROJECT_ID:           ${{ secrets.GCP_PROJECT_ID }}
-          GCP_LOCATION:             ${{ secrets.GCP_LOCATION }}
-          GCP_PROCESSOR_ID:         ${{ secrets.GCP_PROCESSOR_ID }}
-          GEMINI_ENDPOINT_URL:      ${{ secrets.GEMINI_ENDPOINT_URL }}
-          GEMINI_API_KEY:           ${{ secrets.GEMINI_API_KEY }}
+          # The env var above is now set to the path of the JSON file
+          GCP_PROJECT_ID:      ${{ secrets.GCP_PROJECT_ID }}
+          GCP_LOCATION:        ${{ secrets.GCP_LOCATION }}
+          GCP_PROCESSOR_ID:    ${{ secrets.GCP_PROCESSOR_ID }}
+          GEMINI_ENDPOINT_URL: ${{ secrets.GEMINI_ENDPOINT_URL }}
+          GEMINI_API_KEY:      ${{ secrets.GEMINI_API_KEY }}
