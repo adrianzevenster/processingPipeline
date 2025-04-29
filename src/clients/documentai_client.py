@@ -19,7 +19,7 @@ class DocumentAIClient:
         sa_path = GOOGLE_APPLICATION_CREDENTIALS
         if sa_path and os.path.exists(sa_path):
             creds = service_account.Credentials.from_service_account_file(sa_path)
-            # Use explicit project ID if set
+            # Use explicit project ID if set by env
             proj = GCP_PROJECT_ID
         else:
             # Clear invalid env var so google.auth.default() won't pick it up
@@ -42,14 +42,19 @@ class DocumentAIClient:
         try:
             _ = self.client.get_processor(request={"name": self.name})
         except PermissionDenied:
-            click.echo(
-                f"Warning: permission denied for processor {self.name}, skipping validation."
-            )
+            click.echo(f"Warning: permission denied for processor {self.name}, skipping validation.")
         except InvalidArgument:
-            click.echo(
-                f"Warning: invalid processor resource '{self.name}', skipping validation."
-            )
+            click.echo(f"Warning: invalid processor resource '{self.name}', skipping validation.")
         except Exception as e:
-            raise RuntimeError(
-                f"Failed to validate Document AI processor access: {e}"
-            )
+            raise RuntimeError(f"Failed to validate Document AI processor access: {e}")
+
+    def process(self, content: bytes, mime_type: str):
+        """Sends content to Document AI and returns the resulting document object."""
+        request = documentai.types.ProcessRequest(
+            name=self.name,
+            raw_document=documentai.types.RawDocument(
+                content=content,
+                mime_type=mime_type,
+            ),
+        )
+        return self.client.process_document(request=request).document
